@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f4c5c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>FloodWatch PK | Complete Flood Early Warning System</title>
+    
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.css" />
+    
+    <!-- Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- PDF & Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; transition: all 0.3s; }
+        body.dark { background: #0f172a; color: #f1f5f9; }
+        
+        /* Navigation */
+        .navbar { background: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border-bottom: 3px solid #0f4c5c; position: sticky; top: 0; z-index: 100; }
+        body.dark .navbar { background: #1e293b; }
+        .logo { font-size: 1.5rem; font-weight: 800; color: #0f4c5c; }
+        .nav-links { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .nav-link { padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; text-decoration: none; color: #64748b; font-weight: 500; transition: all 0.2s; }
+        .nav-link:hover { background: #f0f4f8; color: #0f4c5c; }
+        .nav-link.active { background: #0f4c5c; color: white; }
+        body.dark .nav-link { color: #94a3b8; }
+        body.dark .nav-link:hover { background: #334155; color: white; }
+        
+        .main-container { max-width: 1400px; margin: 0 auto; padding: 1.5rem; }
+        .page { display: none; animation: fadeIn 0.3s; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Map */
+        .map-container { height: 450px; width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        /* Stats Cards */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem 0; }
+        .stat-card { background: white; padding: 1rem; border-radius: 12px; text-align: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
+        body.dark .stat-card { background: #1e293b; }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .stat-card.critical { border-left: 4px solid #dc2626; }
+        .stat-card.high { border-left: 4px solid #f97316; }
+        .stat-card.medium { border-left: 4px solid #eab308; }
+        .stat-card.low { border-left: 4px solid #22c55e; }
+        .stat-number { font-size: 2rem; font-weight: 800; }
+        
+        /* Filter Bar */
+        .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+        .filter-btn { padding: 0.5rem 1rem; border: none; border-radius: 20px; cursor: pointer; background: #e2e8f0; transition: all 0.2s; }
+        body.dark .filter-btn { background: #334155; color: white; }
+        .filter-btn.active { background: #0f4c5c; color: white; }
+        .filter-btn.critical.active { background: #dc2626; }
+        .filter-btn.high.active { background: #f97316; }
+        .filter-btn.medium.active { background: #eab308; }
+        .filter-btn.low.active { background: #22c55e; }
+        
+        /* Search */
+        .search-box { margin: 1rem 0; }
+        .search-box input { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        body.dark .search-box input { background: #334155; border-color: #475569; color: white; }
+        
+        /* Lists */
+        .village-list, .chat-messages, .camps-list { max-height: 400px; overflow-y: auto; background: white; border-radius: 12px; }
+        body.dark .village-list, body.dark .chat-messages, body.dark .camps-list { background: #1e293b; }
+        .village-item, .chat-message, .camp-item { padding: 0.75rem; border-bottom: 1px solid #e2e8f0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+        body.dark .village-item, body.dark .chat-message, body.dark .camp-item { border-bottom-color: #334155; }
+        .village-item:hover, .chat-message:hover, .camp-item:hover { background: #f0f4f8; transform: translateX(5px); }
+        body.dark .village-item:hover, body.dark .chat-message:hover, body.dark .camp-item:hover { background: #334155; }
+        
+        /* Badges */
+        .risk-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .risk-badge.CRITICAL { background: #fee2e2; color: #dc2626; }
+        .risk-badge.HIGH { background: #fff3e0; color: #f97316; }
+        .risk-badge.MEDIUM { background: #fef9e3; color: #eab308; }
+        .risk-badge.LOW { background: #dcfce7; color: #22c55e; }
+        
+        /* Grids */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 1rem 0; }
+        .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin: 1rem 0; }
+        .four-col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin: 1rem 0; }
+        .card { background: white; border-radius: 12px; padding: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        body.dark .card { background: #1e293b; }
+        .card h3 { margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        
+        /* Alert Card */
+        .alert-card { background: white; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; border-left: 4px solid; display: flex; gap: 1rem; }
+        body.dark .alert-card { background: #1e293b; }
+        
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-content { background: white; margin: 5% auto; width: 90%; max-width: 500px; border-radius: 12px; animation: slideIn 0.3s; max-height: 80%; overflow-y: auto; }
+        body.dark .modal-content { background: #1e293b; }
+        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { display: flex; justify-content: space-between; padding: 1rem; border-bottom: 1px solid #ddd; }
+        body.dark .modal-header { border-bottom-color: #334155; }
+        .modal-close { cursor: pointer; font-size: 1.5rem; }
+        .modal-body { padding: 1rem; }
+        
+        /* Buttons */
+        .btn { padding: 0.6rem 1rem; border: none; border-radius: 8px; cursor: pointer; background: #0f4c5c; color: white; transition: all 0.2s; font-weight: 500; }
+        .btn:hover { transform: scale(1.02); opacity: 0.9; }
+        .btn-danger { background: #dc2626; }
+        .btn-warning { background: #f97316; }
+        .btn-success { background: #22c55e; }
+        
+        /* Chat Input */
+        .chat-input-area { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .chat-input-area input { flex: 1; padding: 0.6rem; border: 1px solid #ddd; border-radius: 8px; }
+        body.dark .chat-input-area input { background: #334155; border-color: #475569; color: white; }
+        
+        /* Toast */
+        .toast { position: fixed; bottom: 20px; right: 20px; background: white; padding: 0.75rem 1.25rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 0.75rem; z-index: 1001; border-left: 4px solid; animation: slideRight 0.3s; }
+        body.dark .toast { background: #1e293b; }
+        @keyframes slideRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        /* Gauge */
+        .gauge-container { width: 100%; height: 20px; background: #e2e8f0; border-radius: 10px; overflow: hidden; margin-top: 0.5rem; }
+        .gauge-fill { height: 100%; width: 0%; background: #f97316; transition: width 0.5s ease; }
+        
+        /* Footer */
+        .footer { text-align: center; padding: 1rem; margin-top: 2rem; color: #666; font-size: 0.8rem; }
+        body.dark .footer { color: #94a3b8; }
+        
+        /* Responsive */
+        @media (max-width: 1000px) { .two-col, .three-col, .four-col { grid-template-columns: 1fr; } .stats-row { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr; } .nav-links { justify-content: center; } .navbar { flex-direction: column; text-align: center; } }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">🌊 FloodWatch PK</div>
+    <div class="nav-links">
+        <a class="nav-link active" data-page="dashboard">📊 Dashboard</a>
+        <a class="nav-link" data-page="alerts">🔔 Alerts <span id="alertBadge" style="background:#dc2626; border-radius:50%; padding:0.1rem 0.4rem; font-size:0.7rem; margin-left:0.3rem;">0</span></a>
+        <a class="nav-link" data-page="camps">🏕️ Relief Camps</a>
+        <a class="nav-link" data-page="chat">💬 Live Chat</a>
+        <a class="nav-link" data-page="reports">📄 Reports</a>
+        <a class="nav-link" data-page="about">ℹ️ About</a>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button id="notifBtn" class="btn" style="background:#0f4c5c;">🔔 Notify</button>
+        <button id="darkModeToggle" class="btn" style="background:#0f4c5c;">🌙 Dark</button>
+        <button id="refreshBtn" class="btn" style="background:#0f4c5c;">🔄 Refresh</button>
+        <button id="langToggle" class="btn" style="background:#0f4c5c;">🇵🇰 اردو</button>
+    </div>
+</nav>
+
+<main class="main-container">
+    
+    <!-- Dashboard Page -->
+    <div id="dashboardPage" class="page active">
+        <div id="map" class="map-container"></div>
+        
+        <div class="stats-row">
+            <div class="stat-card critical" onclick="filterByRisk('CRITICAL')"><div class="stat-number" id="criticalCount">0</div><div>⚠️ Critical</div></div>
+            <div class="stat-card high" onclick="filterByRisk('HIGH')"><div class="stat-number" id="highCount">0</div><div>🔴 High</div></div>
+            <div class="stat-card medium" onclick="filterByRisk('MEDIUM')"><div class="stat-number" id="mediumCount">0</div><div>🟡 Medium</div></div>
+            <div class="stat-card low" onclick="filterByRisk('LOW')"><div class="stat-number" id="lowCount">0</div><div>🟢 Low</div></div>
+        </div>
+        
+        <div class="filter-bar">
+            <button class="filter-btn active" data-risk="all" onclick="filterVillages('all')">All</button>
+            <button class="filter-btn critical" data-risk="critical" onclick="filterVillages('critical')">Critical</button>
+            <button class="filter-btn high" data-risk="high" onclick="filterVillages('high')">High</button>
+            <button class="filter-btn medium" data-risk="medium" onclick="filterVillages('medium')">Medium</button>
+            <button class="filter-btn low" data-risk="low" onclick="filterVillages('low')">Low</button>
+            <button id="heatmapBtn" class="filter-btn">🔥 Heatmap</button>
+            <button id="voiceAlertBtn" class="filter-btn">🔊 Voice Alert</button>
+            <button id="whatsappShareBtn" class="filter-btn">📱 WhatsApp</button>
+            <button id="socialShareBtn" class="filter-btn">📢 Share</button>
+            <button id="donateBtn" class="filter-btn">❤️ Donate</button>
+        </div>
+        
+        <div class="search-box"><input type="text" id="searchInput" placeholder="🔍 Search village or district..."></div>
+        
+        <div class="two-col">
+            <div><h3>📍 Affected Areas</h3><div id="villageList" class="village-list">Loading...</div><button id="exportCsvBtn" class="btn" style="width:100%; margin-top:1rem;"><i class="fas fa-file-excel"></i> Export CSV/Excel</button><button id="exportPdfBtn" class="btn" style="width:100%; margin-top:0.5rem;"><i class="fas fa-file-pdf"></i> Export PDF</button></div>
+            <div><h3>📈 River Status & Gauge</h3><div class="card"><p><strong>Current Level:</strong> <span id="waterLevel">--</span> m</p><p><strong>Danger Level:</strong> <span id="dangerLevel">--</span> m</p><div class="gauge-container"><div class="gauge-fill" id="waterGauge"></div></div><p><strong>Status:</strong> <strong id="riverStatusText">Loading...</strong></p><canvas id="waterLevelChart" height="150"></canvas></div></div>
+        </div>
+        
+        <div class="three-col">
+            <div class="card"><h3><i class="fas fa-cloud-sun"></i> Live Weather</h3><p>🌡️ Temp: <strong id="weatherTemp">--</strong> °C</p><p>💧 Humidity: <strong id="weatherHumidity">--</strong> %</p><p>🌧️ Rainfall: <strong id="weatherRain">--</strong> mm</p><p>💨 Wind: <strong id="weatherWind">--</strong> km/h</p></div>
+            <div class="card"><h3><i class="fas fa-route"></i> Evacuation Guide</h3><p><strong>📍 Safe Zones:</strong></p><ul><li>🏫 Govt High School Sukkur</li><li>🏢 District Council Building</li><li>⛪ City Community Center</li></ul><button id="evacuationBtn" class="btn" style="width:100%;"><i class="fas fa-directions"></i> Get Route</button><button id="locationBtn" class="btn" style="width:100%; margin-top:0.5rem;"><i class="fas fa-location-dot"></i> My Location</button></div>
+            <div class="card"><h3><i class="fas fa-bell"></i> Alerts Setup</h3><input type="tel" id="smsPhone" placeholder="📱 Phone: 03xxxxxxxxx" style="width:100%; padding:0.5rem; margin-bottom:0.5rem; border-radius:8px;"><button id="subscribeSms" class="btn" style="width:100%;"><i class="fas fa-sms"></i> SMS Alerts</button><input type="email" id="emailAddress" placeholder="📧 Email address" style="width:100%; padding:0.5rem; margin:0.5rem 0; border-radius:8px;"><button id="subscribeEmail" class="btn" style="width:100%;"><i class="fas fa-envelope"></i> Email Alerts</button></div>
+        </div>
+        
+        <div class="four-col">
+            <div class="card"><h3><i class="fas fa-phone-alt"></i> Emergency</h3><div>🚑 Rescue 1122</div><div>👮 Police 15</div><div>🏥 Hospital 1021</div><div>📞 NDMA 1334</div></div>
+            <div class="card"><h3><i class="fas fa-chart-line"></i> Disaster History</h3><canvas id="disasterChart" height="120"></canvas></div>
+            <div class="card"><h3><i class="fas fa-shield-alt"></i> Safety Tips</h3><div id="safetyTip" style="font-size:0.9rem;">⚠️ Move to higher ground</div><button id="nextTipBtn" class="btn" style="width:100%; margin-top:0.5rem;">Next Tip →</button></div>
+            <div class="card"><h3><i class="fas fa-campground"></i> Relief Camps</h3><div id="miniCampsList">Loading...</div></div>
+        </div>
+    </div>
+    
+    <!-- Alerts Page -->
+    <div id="alertsPage" class="page"><h2>🔔 Active Flood Alerts</h2><div id="alertsList" class="village-list" style="margin-top:1rem;">Loading...</div></div>
+    
+    <!-- Relief Camps Page -->
+    <div id="campsPage" class="page"><h2>🏕️ Relief Camps Locator</h2><div id="campsMap" style="height:300px; border-radius:12px; margin:1rem 0;"></div><div id="campsFullList" class="village-list">Loading...</div></div>
+    
+    <!-- Live Chat Page -->
+    <div id="chatPage" class="page"><h2>💬 Community Reporting</h2><div id="chatMessages" class="chat-messages" style="height:400px;">Loading...</div><div class="chat-input-area"><input type="text" id="chatInput" placeholder="Share flood report or ask for help..."><button id="chatSendBtn" class="btn">Send</button></div></div>
+    
+    <!-- Reports Page -->
+    <div id="reportsPage" class="page"><h2>📄 Generate Report</h2><div class="card"><select id="reportDistrict" style="width:100%; padding:0.6rem; margin-bottom:1rem;"><option value="all">All Districts</option><option>Sukkur</option><option>Hyderabad</option><option>Karachi</option><option>Larkana</option><option>Multan</option></select><select id="reportFormat" style="width:100%; padding:0.6rem; margin-bottom:1rem;"><option value="pdf">PDF Report</option><option value="excel">Excel (CSV)</option><option value="json">JSON Data</option></select><button id="generateReportBtn" class="btn" style="width:100%;">Generate Report</button></div><div id="reportPreview" class="card" style="margin-top:1rem;"><p style="color:#666;">Select options and click Generate Report</p></div></div>
+    
+    <!-- About Page -->
+    <div id="aboutPage" class="page"><h2>ℹ️ About FloodWatch PK</h2><div class="card"><p><strong>Pakistan's Complete Flood Early Warning System</strong></p><p>30+ features including AI predictions, real-time monitoring, alerts, evacuation routes, community chat, and more.</p><p style="margin-top:0.5rem;"><strong>Emergency:</strong> Rescue 1122 | Police 15 | NDMA 1334</p><p><strong>Version:</strong> 3.0 Complete Edition</p></div></div>
+    
+</main>
+
+<!-- Modals -->
+<div id="villageModal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="modalTitle">Village Details</h3><span class="modal-close" onclick="closeModal()">&times;</span></div><div class="modal-body" id="modalBody"></div></div></div>
+<div id="chatbotModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>🤖 AI Chatbot Assistant</h3><span class="modal-close" onclick="closeChatbot()">&times;</span></div><div class="chatbot-messages" id="chatbotMessages" style="height:300px; overflow-y:auto; padding:1rem;"><div class="bot-msg">Hello! I'm your flood safety assistant. Ask me anything!</div></div><div class="chat-input-area"><input type="text" id="chatbotInput" placeholder="Ask a question..."><button id="chatbotSendBtn" class="btn">Send</button></div></div></div>
+
+<footer class="footer"><p>© 2025 FloodWatch PK | 30+ Features | Pakistan Flood Early Warning System | <span id="footerTime"></span></p></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
