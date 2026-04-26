@@ -450,4 +450,50 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+// ========== MOBILE NAVBAR CLICK FIX ==========
+document.addEventListener('DOMContentLoaded', function() {
+    // Fix for mobile navbar buttons
+    var navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            var page = this.getAttribute('data-page');
+            if (!page) return;
+            
+            // Remove active class from all nav links
+            navLinks.forEach(function(l) {
+                l.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // Hide all pages
+            var pages = ['dashboardPage', 'alertsPage', 'campsPage', 'chatPage', 'reportsPage', 'aboutPage'];
+            pages.forEach(function(p) {
+                var el = document.getElementById(p);
+                if (el) el.classList.remove('active');
+            });
+            
+            // Show selected page
+            var activePage = document.getElementById(page + 'Page');
+            if (activePage) activePage.classList.add('active');
+            
+            // Refresh content if needed
+            if (page === 'alerts') {
+                if (typeof updateAlertsPage === 'function') updateAlertsPage();
+            }
+            if (page === 'camps') {
+                if (typeof loadCamps === 'function') loadCamps();
+                if (typeof renderCampsFull === 'function') renderCampsFull();
+            }
+            
+            console.log('Clicked: ' + page);
+            return false;
+        });
+    });
+    
+    console.log('Mobile navbar fix loaded - Buttons should work now');
+});
 
