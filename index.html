@@ -203,6 +203,38 @@
         grid-template-columns: 1fr !important;
     }
 }
+   /* ========== NAVBAR BUTTONS MOBILE FIX ========== */
+@media (max-width: 768px) {
+    .nav-links {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+        width: 100% !important;
+    }
+    
+    .nav-link {
+        display: inline-block !important;
+        padding: 0.5rem 1rem !important;
+        font-size: 0.85rem !important;
+        background-color: #0f4c5c !important;
+        color: white !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        z-index: 1000 !important;
+    }
+    
+    .nav-link:hover {
+        background-color: #0a3a47 !important;
+    }
+    
+    .navbar {
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+}
    </style>
 </head>
 <body>
